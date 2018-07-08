@@ -579,6 +579,9 @@ void get_set_from_mesh(const glTFMesh* mesh, std::set<glTFid<glTFMaterial>*>& ma
 	std::set<glTFid<glTFAccessor>*>& accessorid_set,
     std::set<glTFid<glTFAccessor>*>& position_accessor);
 std::set<glTFid<glTFTexture>*> get_texts_from_mat(const glTFMaterial* material);
+/// Save a 3dtiles file `filename` to disk. Save binaries and images only if
+/// `save_bin` and `save_img` are true.
+void save_3dtiles(const std::string& filepath, const glTF* gltf);
 }  // namespace ygl
 
 

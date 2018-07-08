@@ -1934,5 +1934,9 @@ void get_set_from_mesh(const glTFMesh* mesh,
         }
     }
 }
+void save_3dtiles(const std::string& filepath, const glTF* gltf) {
+	std::vector<glTF*> group_gltf = split_gltf(gltf);
 
+
+}
 }  // namespace ygl

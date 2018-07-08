@@ -8103,9 +8103,6 @@ inline mat4f node_transform(const glTFNode* node) {
                         scaling_frame(node->scale)) *
            node->matrix;
 }
-/// Save a 3dtiles file `filename` to disk. Save binaries and images only if
-/// `save_bin` and `save_img` are true.
-void save_3dtiles(const std::string& filepath, const glTF* gltf);
 
 
 /// A view for gltf array buffers that allows for typed access.

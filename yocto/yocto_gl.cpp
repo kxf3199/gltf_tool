@@ -8548,11 +8548,6 @@ void save_gltf(const std::string& filename, const glTF* gltf, bool save_bin,
     if (save_image) save_images(gltf, dirname, false);
 }
 
-void save_3dtiles(const std::string& filepath, const glTF* gltf) {
-	
-}
-
-
 // reading shortcut
 template <typename T>
 void gltf_fread(FILE* f, T* v, int count) {
