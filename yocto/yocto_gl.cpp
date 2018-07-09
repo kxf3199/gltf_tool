@@ -7953,15 +7953,14 @@ void serialize(glTFAsset& val, json& js, bool reading) {
 void serialize(glTFBuffer& val, json& js, bool reading) {
     static auto def = glTFBuffer();
     serialize_obj(js, reading);
-    serialize((glTFChildOfRootProperty&)val, js, reading);	
-	// if uri is empty,then insert data
-	if (val.uri.empty()&&val.byteLength>3) {
+    serialize((glTFChildOfRootProperty&)val, js, reading);
+    // if uri is empty,then insert data
+    if (val.uri.empty() && val.byteLength > 3) {
         val.uri = "data:application/octet-stream;base64," +
                   base64_encode(val.data.data(), val.byteLength);
-	}
+    }
 
     serialize_attr(val.uri, js, "uri", reading, false, def.uri);
-    
 
     serialize_attr(
         val.byteLength, js, "byteLength", reading, true, def.byteLength);
@@ -8209,10 +8208,10 @@ void serialize(glTFBatch& val, json& js, bool reading) {
     static auto def = glTFBatch();
     serialize_obj(js, reading);
     serialize((glTFChildOfRootProperty&)val, js, reading);
-	//serialize_attr(val.id, js, "id", reading, true, def.id);
-	serialize_attr(val.batch, js, "batch", reading, true, def.batch);
-	serialize_attr(val.maxPoint, js, "batch", reading, true, def.maxPoint);
-	serialize_attr(val.minPoint, js, "batch", reading, true, def.minPoint);
+    // serialize_attr(val.id, js, "id", reading, true, def.id);
+    serialize_attr(val.batch, js, "batch", reading, true, def.batch);
+    serialize_attr(val.maxPoint, js, "max", reading, true, def.maxPoint);
+    serialize_attr(val.minPoint, js, "min", reading, true, def.minPoint);
 }
 
 // Parses a glTFNode object
@@ -8334,7 +8333,6 @@ void serialize(glTF& val, json& js, bool reading) {
     serialize_attr(val.skins, js, "skins", reading, false, def.skins);
     serialize_attr(val.textures, js, "textures", reading, false, def.textures);
 }
-
 
 // Load buffer data.
 void load_buffers(glTF* gltf, const std::string& dirname, bool skip_missing) {
@@ -8496,7 +8494,7 @@ void save_buffers(
         } catch (const std::exception&) {
             if (skip_missing) continue;
             throw;
-        } 
+        }
     }
 }
 
@@ -8728,6 +8726,58 @@ void save_binary_gltf(const std::string& filename, const glTF* gltf,
     auto dirname = path_dirname(filename);
     if (save_bin) save_buffers(gltf, dirname, false);
     if (save_image) save_images(gltf, dirname, false);
+}
+void save_binary_gltf(FILE* f, const glTF* gltf, const std::string& dir_path,
+    bool save_bin, bool save_image) {
+    if (!f) throw std::runtime_error("could not write binary file");
+
+    // dumps json
+    auto js = json();
+    serialize((glTF*&)gltf, js, false);
+
+    // fix string
+    auto js_str = js.dump(2);
+    while (js_str.length() % 4) js_str += " ";
+    uint32_t json_length = (uint32_t)js_str.size();
+
+    // internal buffer
+    auto buffer = gltf->buffers.at(0);
+    uint32_t buffer_length = buffer->byteLength;
+    if (buffer_length % 4) buffer_length += 4 - buffer_length % 4;
+
+    // write header
+    uint32_t magic = 0x46546C67;
+    gltf_fwrite(f, &magic, 1);
+    uint32_t version = 2;
+    gltf_fwrite(f, &version, 1);
+    uint32_t length = 12 + 8 + json_length + 8 + buffer_length;
+    gltf_fwrite(f, &length, 1);
+
+    // write json
+    uint32_t json_type = 0x4E4F534A;
+    gltf_fwrite(f, &json_length, 1);
+    gltf_fwrite(f, &json_type, 1);
+    gltf_fwrite(f, js_str.data(), (int)json_length);
+
+    if (save_bin) {
+        uint32_t buffer_type = 0x004E4942;
+        gltf_fwrite(f, &buffer_length, 1);
+        gltf_fwrite(f, &buffer_type, 1);
+        gltf_fwrite(f, buffer->data.data(), (int)buffer->data.size());
+        char pad = 0;
+        for (auto i = 0; i < buffer_length - buffer->data.size(); i++)
+            gltf_fwrite(f, &pad, 1);
+    }
+
+    // save external resources
+    if (save_bin) save_buffers(gltf, dir_path, false);
+    if (save_image) save_images(gltf, dir_path, false);
+}
+std::vector<unsigned char>& gltf_to_glb(
+	const glTF* gltf, std::vector<unsigned char>& glb) {
+
+
+
 }
 
 accessor_view::accessor_view(const glTF* gltf, const glTFAccessor* accessor) {

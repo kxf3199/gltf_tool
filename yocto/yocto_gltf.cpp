@@ -24,7 +24,7 @@
 // LIABILITY, WHETHER IN AN ACTION OF CONTRACT, TORT OR OTHERWISE, ARISING FROM,
 // OUT OF OR IN CONNECTION WITH THE SOFTWARE OR THE USE OR OTHER DEALINGS IN THE
 // SOFTWARE.
-
+#include "..\apps\beyon_3dtile.h"
 #include "yocto_gltf.h"
 
 // -----------------------------------------------------------------------------
@@ -1726,8 +1726,8 @@ std::vector<glTF*> split_gltf(
         gltf_new->scene.set_id(0);
 
         gltf_new->asset = new glTFAsset();
-        gltf_new->asset->copyright = "kxf";
-        gltf_new->asset->generator = "kxf";
+        gltf_new->asset->copyright = "beyon";
+        gltf_new->asset->generator = "beyon_map";
         gltf_new->asset->version = "2.0";
 
         gltf_new->cameras = gltf->cameras;
@@ -1934,9 +1934,72 @@ void get_set_from_mesh(const glTFMesh* mesh,
         }
     }
 }
+
+
+void sort_gltfBufferViews(glTF* gltf) {
+	//1¡¢buffer_id
+	//2¡¢offset
+
+
+
+}
+
 void save_3dtiles(const std::string& filepath, const glTF* gltf) {
 	std::vector<glTF*> group_gltf = split_gltf(gltf);
+    Tileset tileset;
+        tileset.m_basePath = filepath;
+    tileset.m_refineStyle = REPLACE;
+        tileset.m_root = new TileNode;
+    auto get_bound = [](std::vector<float>& max, std::vector<float>& min,
+                             const std::vector<float>& pos) {
+            if (max[0] < pos[0]) max[0] = pos[0];
+            if (max[1] < pos[1]) max[1] = pos[1];
+            if (max[2] < pos[2]) max[2] = pos[2];
+            if (min[0] > pos[0]) min[0] = pos[0];
+            if (min[1] > pos[1]) min[1] = pos[1];
+            if (min[2] > pos[2]) min[2] = pos[2];
+    };
+	for (auto gl:group_gltf)
+	{ 
+
+			BatchTable batTable;
+			std::vector<float> max = {FLT_MIN, FLT_MIN, FLT_MIN},
+                               min = {FLT_MAX, FLT_MAX, FLT_MAX};
+            for (auto gBatch : gl->batches) {
+                batTable.js["batchId"].push_back(gBatch->id);
+                batTable.js["name"].push_back(gBatch->name);
+                batTable.js["maxPoint"].push_back(gBatch->maxPoint);
+                get_bound(max, min, gBatch->maxPoint);
+                batTable.js["minPoint"].push_back(gBatch->minPoint);
+                get_bound(max, min, gBatch->minPoint);
+            }
+            
+			B3dmHeader b3dheader;
+            std::string batch_str = batTable.align();
+			b3dheader.batchBinLen = batch_str.size();
+            gl
+            TileNode* model_node = new TileNode;
 
 
+
+            model_node->m_boundingVol.style = SPHERE;
+            vec3f maxf(max[0], max[1], max[2]);
+            vec3f minf(min[0], min[1], min[2]);
+            vec3f center = (maxf + minf) / 2;
+            model_node->m_boundingVol.boundArray.resize(4);
+            memcpy(tileset.m_root->m_boundingVol.boundArray.data(),
+                data(center), sizeof(float) * size(center));
+            model_node->m_content
+
+	}
+
+	
+		tileset.m_root->m_boundingVol.style = SPHERE;
+        vec3f maxf(max[0], max[1], max[2]);
+        vec3f minf(min[0], min[1], min[2]);
+        vec3f center = (maxf + minf) / 2;
+        tileset.m_root->m_boundingVol.boundArray.resize(4);
+        memcpy(tileset.m_root->m_boundingVol.boundArray.data(), data(center),
+            sizeof(float) * size(center));
 }
 }  // namespace ygl

@@ -1985,6 +1985,14 @@ inline std::istream& operator>>(std::istream& is, mat<T, N>& a) {
     for (auto i = 0; i < N; i++) is >> data(a)[i];
     return is;
 }
+template <typename T, int N>
+inline std::vector<float>& mat_to_array(std::vector<float>& arr, mat<T, N>& a) {
+    arr.resize(sizeof(T) * N * N);
+    for (auto i = 0; i < N; i++) {
+        memcpy(arr.data() + sizeof(T) * i, data(data(a)[i]), sizeof(T) * N);
+    }
+    return arr;
+}
 
 /// @}
 
@@ -7818,8 +7826,8 @@ struct glTFBatch : glTFChildOfRootProperty {
     std::vector<unsigned short> data = {};
     /// batch id.
     unsigned short id = 0;
-	std::vector<float> maxPoint = { FLT_MIN,FLT_MIN,FLT_MIN };
-	std::vector<float> minPoint= { FLT_MAX,FLT_MAX,FLT_MAX };
+    std::vector<float> maxPoint = {FLT_MIN, FLT_MIN, FLT_MIN};
+    std::vector<float> minPoint = {FLT_MAX, FLT_MAX, FLT_MAX};
 };
 /// A node in the node hierarchy.  When the node contains `skin`, all
 /// `mesh.primitives` must contain `JOINTS_0` and `WEIGHTS_0` attributes.  A
@@ -8095,6 +8103,13 @@ void save_gltf(const std::string& filename, const glTF* gltf,
 /// `save_bin` and `save_img` are true.
 void save_binary_gltf(const std::string& filename, const glTF* gltf,
     bool save_bin = true, bool save_img = false);
+/// Save a gltf file `filename` to disk. Save binaries and images only if
+/// `save_bin` and `save_img` are true.
+void save_binary_gltf(FILE* f, const glTF* gltf,
+    const std::string& dir_path = "", bool save_bin = true,
+    bool save_img = false);
+std::vector<unsigned char>& gltf_to_glb(
+    const glTF* gltf, std::vector<unsigned char>& glb);
 
 /// Computes the local node transform and its inverse.
 inline mat4f node_transform(const glTFNode* node) {
@@ -8103,7 +8118,6 @@ inline mat4f node_transform(const glTFNode* node) {
                         scaling_frame(node->scale)) *
            node->matrix;
 }
-
 
 /// A view for gltf array buffers that allows for typed access.
 struct accessor_view {
