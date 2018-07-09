@@ -1935,15 +1935,58 @@ void get_set_from_mesh(const glTFMesh* mesh,
     }
 }
 
-
-void sort_gltfBufferViews(glTF* gltf) {
-	//1、buffer_id
-	//2、offset
-
-
-
+// bool sort_bufferid(const glTFBufferView& a, const glTFBufferView& b) { return int(a.buffer) <= int(b.buffer); }
+// void sort_gltfBufferViews(glTF* gltf) {
+// 	if (gltf->buffers.size() == 1)
+// 		return;
+// 	//1、buffer_id
+// 	//2、offset
+// 	std::sort(gltf->bufferViews.begin(), gltf->bufferViews.end(), sort_bufferid);
+// 
+// 
+// }
+// std::map<int, std::vector<glTFBufferView*>> get_bufferview_map(const glTF* gltf, std::map<int, std::vector<glTFBufferView*>>& buffer_view_map) {
+// 	for (auto gBufferview:gltf->bufferViews)
+// 	{
+// 		auto itbuffer = buffer_view_map.find(int(gBufferview->buffer));
+// 		if (itbuffer==buffer_view_map.end())
+// 		{
+// 			buffer_view_map.insert(std::make_pair(int(gBufferview->buffer), gBufferview));
+// 		}
+// 		else {
+// 			itbuffer->second.push_back(gBufferview);
+// 		}
+// 	}
+// 	return buffer_view_map;
+// }
+void merge_buffer(glTF& gltf) {
+	if (gltf.buffers.size() < 2)
+		return;
+	//
+	std::map<int, int> buffer_len;
+	buffer_len.insert(std::make_pair(0, 0));
+	glTFBuffer* gBuffer = gltf.buffers[0];
+	for (int i=1;i<gltf.buffers.size();i++)
+	{
+		buffer_len.insert(std::make_pair(i, gltf.buffers[i-1]->byteLength));
+		gBuffer->byteLength += gltf.buffers[i]->byteLength;
+		gBuffer->data.insert(gBuffer->data.end(), gltf.buffers[i]->data.begin(), gltf.buffers[i]->data.end());		
+	}
+	//clear
+	for (auto it = gltf.buffers.end() - 1; it != gltf.buffers.begin(); it--)
+	{
+		gltf.buffers.erase(it);
+	}
+	//update bufferviews
+	for (auto gBufView:gltf.bufferViews)
+	{
+		if (int(gBufView->buffer)!=0)
+		{
+			gBufView->byteOffset += buffer_len.find(int(gBufView->buffer))->second;
+			gBufView->buffer.set_id(0);			
+		}
+	}
 }
-
 void save_3dtiles(const std::string& filepath, const glTF* gltf) {
 	std::vector<glTF*> group_gltf = split_gltf(gltf);
     Tileset tileset;
@@ -1977,7 +2020,6 @@ void save_3dtiles(const std::string& filepath, const glTF* gltf) {
 			B3dmHeader b3dheader;
             std::string batch_str = batTable.align();
 			b3dheader.batchBinLen = batch_str.size();
-            gl
             TileNode* model_node = new TileNode;
 
 

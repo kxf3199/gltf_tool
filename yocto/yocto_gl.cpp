@@ -8776,7 +8776,7 @@ void save_binary_gltf(FILE* f, const glTF* gltf, const std::string& dir_path,
 std::vector<unsigned char>& gltf_to_glb(
 	const glTF* gltf, std::vector<unsigned char>& glb) {
 
-
+	return glb;
 
 }
 
