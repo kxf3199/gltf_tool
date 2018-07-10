@@ -109,6 +109,48 @@ const unsigned int* imgui_extrafont_compressed_data();
 // -----------------------------------------------------------------------------
 namespace ygl {
 
+std::vector<double> transfrom_xyz(
+    double radian_x, double radian_y, double height_min) {
+    double ellipsod_a = 40680631590769;
+    double ellipsod_b = 40680631590769;
+    double ellipsod_c = 40408299984661.4;
+
+    const double pi = acos(-1);
+    double xn = cos(radian_x) * cos(radian_y);
+    double yn = sin(radian_x) * cos(radian_y);
+    double zn = sin(radian_y);
+
+    double x0 = ellipsod_a * xn;
+    double y0 = ellipsod_b * yn;
+    double z0 = ellipsod_c * zn;
+    double gamma = sqrt(xn * x0 + yn * y0 + zn * z0);
+    double px = x0 / gamma;
+    double py = y0 / gamma;
+    double pz = z0 / gamma;
+
+    double dx = xn * height_min;
+    double dy = yn * height_min;
+    double dz = zn * height_min;
+
+    std::vector<double> east_mat = {-y0, x0, 0};
+    std::vector<double> north_mat = {(y0 * east_mat[2] - east_mat[1] * z0),
+        (z0 * east_mat[0] - east_mat[2] * x0),
+        (x0 * east_mat[1] - east_mat[0] * y0)};
+    double east_normal =
+        sqrt(east_mat[0] * east_mat[0] + east_mat[1] * east_mat[1] +
+             east_mat[2] * east_mat[2]);
+    double north_normal =
+        sqrt(north_mat[0] * north_mat[0] + north_mat[1] * north_mat[1] +
+             north_mat[2] * north_mat[2]);
+
+    std::vector<double> matrix = {east_mat[0] / east_normal,
+        east_mat[1] / east_normal, east_mat[2] / east_normal, 0,
+        north_mat[0] / north_normal, north_mat[1] / north_normal,
+        north_mat[2] / north_normal, 0, xn, yn, zn, 0, px + dx, py + dy,
+        pz + dz, 1};
+    return matrix;
+}
+
 // Turntable for UI navigation.
 void camera_turntable(vec3f& from, vec3f& to, vec3f& up, const vec2f& rotate,
     float dolly, const vec2f& pan) {
@@ -8773,11 +8815,53 @@ void save_binary_gltf(FILE* f, const glTF* gltf, const std::string& dir_path,
     if (save_bin) save_buffers(gltf, dir_path, false);
     if (save_image) save_images(gltf, dir_path, false);
 }
+
 std::vector<unsigned char>& gltf_to_glb(
-	const glTF* gltf, std::vector<unsigned char>& glb) {
+    const glTF* gltf, std::vector<unsigned char>& glb) {
+    // dumps json
+    auto js = json();
+    serialize((glTF*&)gltf, js, false);
 
-	return glb;
+    // fix string
+    auto js_str = js.dump(2);
+    while (js_str.length() % 4) js_str += " ";
+    uint32_t json_length = (uint32_t)js_str.size();
 
+    // internal buffer
+    auto buffer = gltf->buffers.at(0);
+    uint32_t buffer_length = buffer->byteLength;
+    if (buffer_length % 4) buffer_length += 4 - buffer_length % 4;
+
+    uint32_t length = 12 + 8 + json_length + 8 + buffer_length;
+
+    glb.resize(length);
+    memset(glb.data(), 0, length);
+    // write header
+    uint32_t magic = 0x46546C67;    
+	memcpy(glb.data(), &magic, 4);
+    int offset = 4;
+    uint32_t version = 2;
+    memcpy(glb.data()+offset, &version, 4);
+    offset += 4;
+    memcpy(glb.data() + offset, &length, 4);
+    offset += 4;
+    // write json
+    uint32_t json_type = 0x4E4F534A;
+    memcpy(glb.data() + offset, &json_length, 4);
+    offset += 4;
+    memcpy(glb.data() + offset, &json_type, 4);
+    offset += 4;
+    memcpy(glb.data() + offset, js_str.data(), (int)json_length);
+    offset += json_length;
+
+    uint32_t buffer_type = 0x004E4942;
+    memcpy(glb.data() + offset, &buffer_length, 4);
+    offset += 4;
+    memcpy(glb.data() + offset, &buffer_type, 4);
+    offset += 4;
+    memcpy(glb.data() + offset, buffer->data.data(), buffer_length);
+    offset += buffer_length;
+    return glb;
 }
 
 accessor_view::accessor_view(const glTF* gltf, const glTFAccessor* accessor) {

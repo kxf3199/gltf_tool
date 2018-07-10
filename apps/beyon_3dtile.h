@@ -1,16 +1,86 @@
-
+#ifndef _BEYON3DTILE_H_
+#define _BEYON3DTILE_H_
 #include "../yocto/ext/json.hpp"
 #include "../yocto/yocto_gl.h"
 using json = nlohmann::json;
+
+
 namespace ygl {
 
+//double degree2rad(double val) { return val * pi / 180.0; };
+
+// double lati_to_meter(double diff) { return diff / 0.000000157891; };
+// 
+// double longti_to_meter(double diff, double lati) {
+//     return diff / 0.000000156785 * std::cos(lati);
+// };
+// 
+// double meter_to_lati(double m) { return m * 0.000000157891; };
+// 
+// double meter_to_longti(double m, double lati) {
+//     return m * 0.000000156785 / std::cos(lati);
+// };
+// 
+// std::vector<double> transfrom_xyz(
+//     double radian_x, double radian_y, double height_min) {
+//     double ellipsod_a = 40680631590769;
+//     double ellipsod_b = 40680631590769;
+//     double ellipsod_c = 40408299984661.4;
+// 
+//     const double pi = std::acos(-1);
+//     double xn = std::cos(radian_x) * std::cos(radian_y);
+//     double yn = std::sin(radian_x) * std::cos(radian_y);
+//     double zn = std::sin(radian_y);
+// 
+//     double x0 = ellipsod_a * xn;
+//     double y0 = ellipsod_b * yn;
+//     double z0 = ellipsod_c * zn;
+//     double gamma = std::sqrt(xn * x0 + yn * y0 + zn * z0);
+//     double px = x0 / gamma;
+//     double py = y0 / gamma;
+//     double pz = z0 / gamma;
+// 
+//     double dx = xn * height_min;
+//     double dy = yn * height_min;
+//     double dz = zn * height_min;
+// 
+//     std::vector<double> east_mat = {-y0, x0, 0};
+//     std::vector<double> north_mat = {(y0 * east_mat[2] - east_mat[1] * z0),
+//         (z0 * east_mat[0] - east_mat[2] * x0),
+//         (x0 * east_mat[1] - east_mat[0] * y0)};
+//     double east_normal =
+//         std::sqrt(east_mat[0] * east_mat[0] + east_mat[1] * east_mat[1] +
+//                   east_mat[2] * east_mat[2]);
+//     double north_normal =
+//         std::sqrt(north_mat[0] * north_mat[0] + north_mat[1] * north_mat[1] +
+//                   north_mat[2] * north_mat[2]);
+// 
+//     std::vector<double> matrix = {east_mat[0] / east_normal,
+//         east_mat[1] / east_normal, east_mat[2] / east_normal, 0,
+//         north_mat[0] / north_normal, north_mat[1] / north_normal,
+//         north_mat[2] / north_normal, 0, xn, yn, zn, 0, px + dx, py + dy,
+//         pz + dz, 1};
+//     return matrix;
+// };
+
+// extern "C" void transform_c(
+//     double center_x, double center_y, double height_min, double* ptr) {
+//     double radian_x = degree2rad(center_x);
+//     double radian_y = degree2rad(center_y);
+//     std::vector<double> v = transfrom_xyz(radian_x, radian_y, height_min);
+//     std::memcpy(ptr, v.data(), v.size() * 8);
+// };
+
+};
+
+
+namespace ygl {
 enum TileType { B3DM, I3DM };
 
 /*
 "b3dm".This can be used to identify the arraybuffer
     as a Batched 3D Model tile.
-        
-byteLen- The length of the entire tile,
+        byteLen- The length of the entire tile,
     including the header,
     in bytes.
 
@@ -51,21 +121,22 @@ struct B3dmHeader {
 struct TileTable {
     json js = {};
     std::vector<unsigned char> bin;
-	std::string& align() {
-        std::string js_str=js.dump(2);
+    int align(std::string& js_str) {
+        js_str = js.dump(2);
         while (js_str.length() % 4) js_str += " ";
-        return js_str;
-	}
+        return js_str.size();
+    }
     bool save(FILE* f) {
         if (js.empty()) return false;
-        std::string js_str = align();
-        fwrite(js_str.c_str(), 1, (int)js_str.size(), f);
+        std::string js_str = "";
+        int len = align(js_str);
+        fwrite(js_str.c_str(), 1, len, f);
         fwrite(bin.data(), 1, bin.size(), f);
         return true;
     };
 };
 struct FeatureTable : TileTable {
-    json js = {{"batchLen", 0}};  // batchLen = 0;   //required
+    // batchLen = 0;   //required
 };
 /*The Batch Table contains per-model application-specific metadata,
 indexable by batchId, that can be used for declarative styling and
@@ -76,17 +147,18 @@ batchId indicates the model to which the vertex belongs. This allows models
 to be batched together and still be identifiable.*/
 struct BatchTable : TileTable {};
 struct B3dModel {
-    B3dModel(const glTF* gl,FeatureTable& ft,BatchTable& bt);
+    B3dModel(const glTF* gl, FeatureTable& ft, BatchTable& bt);
     ~B3dModel();
     B3dmHeader header;
     FeatureTable featureTable;
     BatchTable batchTable;
     const glTF* gltf = nullptr;
+    std::vector<unsigned char> glb;
     void save(FILE* f) {
         if (header.save(f)) {
             featureTable.save(f);
             batchTable.save(f);
-            ygl::save_binary_gltf(f, gltf);
+            fwrite(glb.data(), 1, glb.size(), f);
         }
     };
 };
@@ -111,8 +183,7 @@ sphere :
 struct BoundingVolume {
     BoundingStyle style = BOX;
     std::vector<float> boundArray;
-    json& convert_js() {
-        json js;
+    json& convert_js(json& js) {
         switch (style) {
             case REGION:
                 js["region"] = {
@@ -143,32 +214,33 @@ struct TileContent {
 };
 struct TileNode {
     BoundingVolume m_boundingVol;
-    mat4f m_transform = {
-        {1, 0, 0, 0}, {0, 1, 0, 0}, {0, 0, 1, 0}, {0, 0, 0, 1}};
+    std::vector<double> m_transform = {
+        1, 0, 0, 0, 0, 1, 0, 0, 0, 0, 1, 0, 0, 0, 0, 1};
+
+    //     mat4f m_transform = {
+    //         {1, 0, 0, 0}, {0, 1, 0, 0}, {0, 0, 1, 0}, {0, 0, 0, 1}};
     float m_geometricError;
     RefineStyle m_refineStyle = ADD;
     TileContent m_content;
     B3dModel* m_b3dm = nullptr;
     std::vector<TileNode*> m_childNode;
-    json& convert_js() {
-        json js;
-        js["boundingVolume"] = m_boundingVol.convert_js();
+    json& convert_js(json& js) {
+        json bound_js;
+        js["boundingVolume"] = m_boundingVol.convert_js(bound_js);
         js["geometricError"] = 0.0;
         switch (m_refineStyle) {
             case ADD: js["refine"] = "ADD"; break;
             case REPLACE: js["refine"] = "REPLACE"; break;
         };
-        if (!m_content.uri.empty()) { 
-            js["content"]["uri"] = m_content.uri;
-		}
-        std::vector<float> trans_data;
-        ygl::mat_to_array(trans_data, m_transform);
-        js["transform"] = trans_data;
+        if (!m_content.uri.empty()) { js["content"]["uri"] = m_content.uri; }
+        // std::vector<float> trans_data;
+        // ygl::mat_to_array(trans_data, m_transform);
+        js["transform"] = m_transform;
         for (auto sonNode : m_childNode) {
-            js["children"].push_back(sonNode->convert_js());
+            json son_js;
+            js["children"].push_back(sonNode->convert_js(son_js));
         }
         return js;
-            
     };
     void save_b3dm(const std::string& basePath) {
         if (!m_content.uri.empty() && m_b3dm) {
@@ -183,20 +255,17 @@ struct TileNode {
 };
 struct Asset {
     std::string m_version = "0.0";
-    std::string m_tilesetVersion="beyon-0.0";
+    std::string m_tilesetVersion = "beyon-0.0";
     std::string m_glftUpAxis = "Y";
 };
 struct Tileset {
     Asset m_asset;
     float m_geometricError = 200;
-    TileNode* m_root=nullptr;
-    mat4f m_transform = {
-        {1, 0, 0, 0}, {0, 1, 0, 0}, {0, 0, 1, 0}, {0, 0, 0, 1}};
+    TileNode* m_root = nullptr;
     std::string m_basePath = "";
-    char m_gltfUpAxis = 'Y';
+    std::string m_gltfUpAxis = "Y";
     RefineStyle m_refineStyle = ADD;
-    json& convert_js() {
-        json js;
+    json& convert_js(json& js) {
         js["asset"] = {{"version", "0.0"}, {"tilesetVersion", "beyon_3dtile"},
             {"gltfUpAxis", m_gltfUpAxis}};
         js["geometricError"] = m_geometricError;
@@ -206,22 +275,30 @@ struct Tileset {
             case REPLACE: js["refine"] = "REPLACE"; break;
         };
         js["refine"] = m_geometricError;
-        std::vector<float> trans_data;
-        ygl::mat_to_array(trans_data, m_transform);
-        js["transform"] = trans_data;
+        json roo_js;
+        js["root"] = m_root->convert_js(roo_js);
         return js;
-	}
+    }
 };
 class Beyon3dtile {
-    Beyon3dtile(TileType type, Tileset& ts);
+   public:
+    Beyon3dtile(TileType type);
     ~Beyon3dtile();
+
+   public:
     TileType m_tileType = B3DM;
     Tileset* m_tileSet = nullptr;
+    glTF* m_gltf = nullptr;
 
    public:
     void save() {
         if (save_tileset()) save_model();
     };
+    bool generate_tileset(glTF* gl, std::string outpath, double radian_x,
+        double radian_y, double height, double tile_w = 200,
+        double tile_h = 200, double height_min = 0, double height_max = 100,
+        double geometricError = 200);
+    void set_pos(double lon, double lat, double height);
 
    private:
     void save_model();
@@ -229,3 +306,5 @@ class Beyon3dtile {
 };
 
 };  // namespace ygl
+
+#endif

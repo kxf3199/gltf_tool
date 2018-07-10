@@ -913,7 +913,33 @@ using namespace std::literals;
 /// @}
 
 }  // namespace ygl
+namespace ygl {
+ inline double degree2rad(double val) { return val * pi / 180.0; }
 
+ inline double lati_to_meter(double diff) { return diff / 0.000000157891; }
+
+ inline double longti_to_meter(double diff, double lati) {
+     return diff / 0.000000156785 * cos(lati);
+ }
+
+ inline double meter_to_lati(double m) { return m * 0.000000157891; };
+
+ inline double meter_to_longti(double m, double lati) {
+     return m * 0.000000156785 / cos(lati);
+ }
+
+ std::vector<double> transfrom_xyz(
+     double radian_x, double radian_y, double height_min);
+
+//  extern "C" void transform_c(
+//      double center_x, double center_y, double height_min, double* ptr) {
+//      double radian_x = degree2rad(center_x);
+//      double radian_y = degree2rad(center_y);
+//      std::vector<double> v = transfrom_xyz(radian_x, radian_y, height_min);
+//      std::memcpy(ptr, v.data(), v.size() * 8);
+//  }
+
+}  // namespace ygl
 // -----------------------------------------------------------------------------
 // VECTORS
 // -----------------------------------------------------------------------------
@@ -1987,7 +2013,7 @@ inline std::istream& operator>>(std::istream& is, mat<T, N>& a) {
 }
 template <typename T, int N>
 inline std::vector<float>& mat_to_array(std::vector<float>& arr, mat<T, N>& a) {
-    arr.resize(sizeof(T) * N * N);
+    arr.resize(sizeof(T) * N);
     for (auto i = 0; i < N; i++) {
         memcpy(arr.data() + sizeof(T) * i, data(data(a)[i]), sizeof(T) * N);
     }
@@ -9689,11 +9715,11 @@ inline void visit(gl_stdimage_params& val, Visitor&& visitor) {
     visitor(val.offset, visit_var{"offset", visit_var_type::value,
                             "Image offset.", -4096, 4096, ""});
     visitor(val.zoom,
-        visit_var{"zoom", visit_var_type::value, "Image zoom.", 0.01, 10, ""});
+        visit_var{"zoom", visit_var_type::value, "Image zoom.", 0.01f, 10, ""});
     visitor(val.exposure, visit_var{"exposure", visit_var_type::value,
                               "Hdr exposure.", -10, 10, "e"});
     visitor(val.gamma,
-        visit_var{"gamma", visit_var_type::value, "Hdr gamma.", 0.1, 3, "g"});
+        visit_var{"gamma", visit_var_type::value, "Hdr gamma.", 0.1f, 3, "g"});
     visitor(val.filmic, visit_var{"filmic", visit_var_type::value,
                             "Hdr filmic tonemapping.", 0, 0, "F"});
     visitor(val.background, visit_var{"background", visit_var_type::color,

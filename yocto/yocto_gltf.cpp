@@ -24,7 +24,6 @@
 // LIABILITY, WHETHER IN AN ACTION OF CONTRACT, TORT OR OTHERWISE, ARISING FROM,
 // OUT OF OR IN CONNECTION WITH THE SOFTWARE OR THE USE OR OTHER DEALINGS IN THE
 // SOFTWARE.
-#include "..\apps\beyon_3dtile.h"
 #include "yocto_gltf.h"
 
 // -----------------------------------------------------------------------------
@@ -32,6 +31,7 @@
 // -----------------------------------------------------------------------------
 
 namespace ygl {
+
 
 // Math support
 inline mat4f node_transform(const gltf_node* node) {
@@ -1678,7 +1678,7 @@ std::vector<glTF*> split_gltf(
     for (auto gmesh : gltf->meshes) {
         auto gltf_new = new glTF();
 
-		std::string buffer_uri = "";
+        std::string buffer_uri = "";
         bool separate_buffers = false;
         // add buffer
         auto add_buffer = [&gltf_new](const std::string& buffer_uri) {
@@ -1701,7 +1701,6 @@ std::vector<glTF*> split_gltf(
                 return gbuffer_global;
             }
         };
-
 
         // save current accessor
         std::set<glTFid<glTFAccessor>*> accessors_indices;
@@ -1733,7 +1732,7 @@ std::vector<glTF*> split_gltf(
         gltf_new->cameras = gltf->cameras;
         //找出mesh中使用的材质和accessors
         std::set<glTFid<glTFMaterial>*> mat_indices;
-		//保存顶点accessor
+        //保存顶点accessor
         std::set<glTFid<glTFAccessor>*> accessors_positions;
         get_set_from_mesh(
             new_mesh, mat_indices, accessors_indices, accessors_positions);
@@ -1760,59 +1759,60 @@ std::vector<glTF*> split_gltf(
                 gText->source.set_id(gltf_new->images.size() - 1);
             }
         }
-        
-		auto get_bound = [](std::vector<float>& max, std::vector<float>& min, vec3f& pos){
+
+        auto get_bound = [](std::vector<float>& max, std::vector<float>& min,
+                             vec3f& pos) {
             if (max[0] < pos.x) max[0] = pos.x;
             if (max[1] < pos.y) max[1] = pos.y;
             if (max[2] < pos.z) max[2] = pos.z;
-			if (min[0] > pos.x) min[0] = pos.x;
-			if (min[1] > pos.y) min[1] = pos.y;
-			if (min[2] > pos.z) min[2] = pos.z;
+            if (min[0] > pos.x) min[0] = pos.x;
+            if (min[1] > pos.y) min[1] = pos.y;
+            if (min[2] > pos.z) min[2] = pos.z;
         };
         //取buffer
         //将buffer集合一起
         std::vector<unsigned char> acce_buffer;
 
         auto gbuffer = add_opt_buffer("");
-		//顶点个数  position num
+        //顶点个数  position num
         int position_count = 0;
-		gltf_new->batches.push_back(new glTFBatch);
+        gltf_new->batches.push_back(new glTFBatch);
         auto gBatch = gltf_new->batches.back();
-        gBatch->name = new_mesh->name + "_batchId"; 
+        gBatch->name = new_mesh->name + "_batchId";
 
-		std::map<int, int> store_accessor_map;
+        std::map<int, int> store_accessor_map;
         for (auto itAccess : accessors_indices) {
-			auto it_exist_accessor =
-                store_accessor_map.find(int(*itAccess));
-			//this accessor should be exist;
-            if (it_exist_accessor != store_accessor_map.end())
-			{
+            auto it_exist_accessor = store_accessor_map.find(int(*itAccess));
+            // this accessor should be exist;
+            if (it_exist_accessor != store_accessor_map.end()) {
                 itAccess->set_id(it_exist_accessor->second);
-				continue;
-			}
+                continue;
+            }
             accessor_view acce_view(gltf, gltf->accessors[int(*itAccess)]);
-            auto gAccessor =new glTFAccessor(*gltf->accessors[int(*itAccess)]);
+            auto gAccessor = new glTFAccessor(*gltf->accessors[int(*itAccess)]);
 
-			auto positon_accessor = accessors_positions.find(itAccess);
-            if (positon_accessor !=accessors_positions.end())  // positons propertity
+            auto positon_accessor = accessors_positions.find(itAccess);
+            if (positon_accessor !=
+                accessors_positions.end())  // positons propertity
             {
-				position_count += gAccessor->count;
-                vec3f max_pos = vec3f(gAccessor->max[0],gAccessor->max[1], gAccessor->max[2]);
-                vec3f min_pos = vec3f(gAccessor->min[0],gAccessor->min[1], gAccessor->min[2]);    
-				get_bound(gBatch->maxPoint,gBatch->minPoint, max_pos);
-				get_bound(gBatch->maxPoint,gBatch->minPoint, min_pos);
-			}
+                position_count += gAccessor->count;
+                vec3f max_pos = vec3f(
+                    gAccessor->max[0], gAccessor->max[1], gAccessor->max[2]);
+                vec3f min_pos = vec3f(
+                    gAccessor->min[0], gAccessor->min[1], gAccessor->min[2]);
+                get_bound(gBatch->maxPoint, gBatch->minPoint, max_pos);
+                get_bound(gBatch->maxPoint, gBatch->minPoint, min_pos);
+            }
             gltf_new->accessors.push_back(gAccessor);
             int new_accessor_size = gltf_new->accessors.size();
             store_accessor_map.insert(
-                std::make_pair(int(*itAccess), new_accessor_size-1));
+                std::make_pair(int(*itAccess), new_accessor_size - 1));
             itAccess->set_id(new_accessor_size - 1);
 
             gltf_new->bufferViews.push_back(new glTFBufferView());
             auto bufferView = gltf_new->bufferViews.back();
             bufferView->buffer =
-                glTFid<glTFBuffer>(index(gltf_new->buffers,
-                gbuffer));
+                glTFid<glTFBuffer>(index(gltf_new->buffers, gbuffer));
             bufferView->byteOffset = (int)gbuffer->data.size();
             bufferView->byteStride = 0;
             bufferView->byteLength = acce_view.buffer_size();
@@ -1824,69 +1824,67 @@ std::vector<glTF*> split_gltf(
                 case glTFAccessorType::Scalar:
                     bufferView->target =
                         glTFBufferViewTarget::ElementArrayBuffer;
-					break;
-                case glTFAccessorType::NotSet:
-					break;
-                default: 
-					bufferView->target = glTFBufferViewTarget::ArrayBuffer;
-            }                
+                    break;
+                case glTFAccessorType::NotSet: break;
+                default: bufferView->target = glTFBufferViewTarget::ArrayBuffer;
+            }
             memcpy(ptr, acce_view.get_buffer(), bufferView->byteLength);
             gAccessor->byteOffset = 0;
             gAccessor->bufferView.set_id(gltf_new->bufferViews.size() - 1);
-            
         }
 
         //取image_buffer
         auto image_gbuf = add_buffer("");
         for (auto gImage : gltf_new->images) {
+            auto image_view =
+                new glTFBufferView(*gltf->get(gImage->bufferView));
 
-			auto image_view = new glTFBufferView(*gltf->get(gImage->bufferView));
+            gltf_new->bufferViews.push_back(image_view);
+            gImage->bufferView.set_id(gltf_new->bufferViews.size() - 1);
 
-			gltf_new->bufferViews.push_back(image_view);
-			gImage->bufferView.set_id(gltf_new->bufferViews.size() - 1);			 
+            size_t buf_last_len = image_gbuf->data.size();
+            image_gbuf->data.resize(buf_last_len + image_view->byteLength);
+            image_gbuf->byteLength += image_view->byteLength;
+            auto ptr = image_gbuf->data.data() + image_gbuf->data.size() -
+                       image_view->byteLength;
+            auto gbuf = gltf->get(image_view->buffer);
 
-			size_t buf_last_len = image_gbuf->data.size();
-			image_gbuf->data.resize(buf_last_len + image_view->byteLength);
-			image_gbuf->byteLength += image_view->byteLength;
-			auto ptr = image_gbuf->data.data() + image_gbuf->data.size() -
-					image_view->byteLength;
-			auto gbuf = gltf->get(image_view->buffer);
-
-			memcpy(ptr, gbuf->data.data() + image_view->byteOffset,
-				image_view->byteLength);	
-			image_view->byteOffset = buf_last_len;
-			image_view->buffer.set_id(gltf_new->buffers.size() - 1);
+            memcpy(ptr, gbuf->data.data() + image_view->byteOffset,
+                image_view->byteLength);
+            image_view->byteOffset = buf_last_len;
+            image_view->buffer.set_id(gltf_new->buffers.size() - 1);
         }
 
-		//costruct batchtable
+        // costruct batchtable
         int batchIdCount = position_count / 3;
 
-		gBatch->data.resize(batchIdCount);
+        gBatch->data.resize(batchIdCount);
         for (int j = 0; j < batchIdCount; j++) gBatch->data[j] = gBatch->id;
-		//add buffer
+        // add buffer
         gltf_new->buffers.push_back(new glTFBuffer());
         auto batch_buf = gltf_new->buffers.back();
         batch_buf->name = gBatch->name;
         batch_buf->data.resize(2 * batchIdCount);
         memcpy(batch_buf->data.data(), gBatch->data.data(), 2 * batchIdCount);
-		//add bufferview
+        batch_buf->byteLength = 2 * batchIdCount; 
+        // add bufferview
         gltf_new->bufferViews.push_back(new glTFBufferView());
         auto batch_view = gltf_new->bufferViews.back();
-        batch_view->buffer.set_id(gltf_new->buffers.size()-1);
+        batch_view->buffer.set_id(gltf_new->buffers.size() - 1);
         batch_view->byteLength = batch_buf->data.size();
         batch_view->name = gBatch->name;
-		//add accessor
-		gltf_new->accessors.push_back(new glTFAccessor);
+        // add accessor
+        gltf_new->accessors.push_back(new glTFAccessor);
         auto batch_accessor = gltf_new->accessors.back();
-                batch_accessor->count = batchIdCount;
+        batch_accessor->count = batchIdCount;
         batch_accessor->max = gBatch->maxPoint;
         batch_accessor->min = gBatch->minPoint;
         batch_accessor->name = gBatch->name;
         batch_accessor->type = glTFAccessorType::Scalar;
         batch_accessor->componentType =
             glTFAccessorComponentType::UnsignedShort;
-		batch_accessor->bufferView.set_id(gltf_new->bufferViews.size() - 1);
-		gBatch->batch.set_id(gltf_new->accessors.size() - 1);
+        batch_accessor->bufferView.set_id(gltf_new->bufferViews.size() - 1);
+        gBatch->batch.set_id(gltf_new->accessors.size() - 1);
         gltf_group.push_back(gltf_new);
     }
     return gltf_group;
@@ -1919,9 +1917,9 @@ std::set<glTFid<glTFTexture>*> get_texts_from_mat(
 //     mat_indices.insert(&meshPri->material); return mat_indices;
 // }
 void get_set_from_mesh(const glTFMesh* mesh,
-    std::set<glTFid<glTFMaterial>*>& matid_set, 
+    std::set<glTFid<glTFMaterial>*>& matid_set,
     std::set<glTFid<glTFAccessor>*>& accessorid_set,
-	std::set<glTFid<glTFAccessor>*>& position_accessor) {
+    std::set<glTFid<glTFAccessor>*>& position_accessor) {
     for (auto meshPri : mesh->primitives) {
         matid_set.insert(&meshPri->material);
         accessorid_set.insert(&meshPri->indices);
@@ -1935,23 +1933,26 @@ void get_set_from_mesh(const glTFMesh* mesh,
     }
 }
 
-// bool sort_bufferid(const glTFBufferView& a, const glTFBufferView& b) { return int(a.buffer) <= int(b.buffer); }
-// void sort_gltfBufferViews(glTF* gltf) {
+// bool sort_bufferid(const glTFBufferView& a, const glTFBufferView& b) { return
+// int(a.buffer) <= int(b.buffer); } void sort_gltfBufferViews(glTF* gltf) {
 // 	if (gltf->buffers.size() == 1)
 // 		return;
 // 	//1、buffer_id
 // 	//2、offset
-// 	std::sort(gltf->bufferViews.begin(), gltf->bufferViews.end(), sort_bufferid);
-// 
-// 
+// 	std::sort(gltf->bufferViews.begin(), gltf->bufferViews.end(),
+// sort_bufferid);
+//
+//
 // }
-// std::map<int, std::vector<glTFBufferView*>> get_bufferview_map(const glTF* gltf, std::map<int, std::vector<glTFBufferView*>>& buffer_view_map) {
+// std::map<int, std::vector<glTFBufferView*>> get_bufferview_map(const glTF*
+// gltf, std::map<int, std::vector<glTFBufferView*>>& buffer_view_map) {
 // 	for (auto gBufferview:gltf->bufferViews)
 // 	{
 // 		auto itbuffer = buffer_view_map.find(int(gBufferview->buffer));
 // 		if (itbuffer==buffer_view_map.end())
 // 		{
-// 			buffer_view_map.insert(std::make_pair(int(gBufferview->buffer), gBufferview));
+// 			buffer_view_map.insert(std::make_pair(int(gBufferview->buffer),
+// gBufferview));
 // 		}
 // 		else {
 // 			itbuffer->second.push_back(gBufferview);
@@ -1960,88 +1961,31 @@ void get_set_from_mesh(const glTFMesh* mesh,
 // 	return buffer_view_map;
 // }
 void merge_buffer(glTF& gltf) {
-	if (gltf.buffers.size() < 2)
-		return;
-	//
-	std::map<int, int> buffer_len;
-	buffer_len.insert(std::make_pair(0, 0));
-	glTFBuffer* gBuffer = gltf.buffers[0];
-	for (int i=1;i<gltf.buffers.size();i++)
-	{
-		buffer_len.insert(std::make_pair(i, gltf.buffers[i-1]->byteLength));
-		gBuffer->byteLength += gltf.buffers[i]->byteLength;
-		gBuffer->data.insert(gBuffer->data.end(), gltf.buffers[i]->data.begin(), gltf.buffers[i]->data.end());		
-	}
-	//clear
-	for (auto it = gltf.buffers.end() - 1; it != gltf.buffers.begin(); it--)
-	{
-		gltf.buffers.erase(it);
-	}
-	//update bufferviews
-	for (auto gBufView:gltf.bufferViews)
-	{
-		if (int(gBufView->buffer)!=0)
-		{
-			gBufView->byteOffset += buffer_len.find(int(gBufView->buffer))->second;
-			gBufView->buffer.set_id(0);			
-		}
-	}
-}
-void save_3dtiles(const std::string& filepath, const glTF* gltf) {
-	std::vector<glTF*> group_gltf = split_gltf(gltf);
-    Tileset tileset;
-        tileset.m_basePath = filepath;
-    tileset.m_refineStyle = REPLACE;
-        tileset.m_root = new TileNode;
-    auto get_bound = [](std::vector<float>& max, std::vector<float>& min,
-                             const std::vector<float>& pos) {
-            if (max[0] < pos[0]) max[0] = pos[0];
-            if (max[1] < pos[1]) max[1] = pos[1];
-            if (max[2] < pos[2]) max[2] = pos[2];
-            if (min[0] > pos[0]) min[0] = pos[0];
-            if (min[1] > pos[1]) min[1] = pos[1];
-            if (min[2] > pos[2]) min[2] = pos[2];
-    };
-	for (auto gl:group_gltf)
-	{ 
-
-			BatchTable batTable;
-			std::vector<float> max = {FLT_MIN, FLT_MIN, FLT_MIN},
-                               min = {FLT_MAX, FLT_MAX, FLT_MAX};
-            for (auto gBatch : gl->batches) {
-                batTable.js["batchId"].push_back(gBatch->id);
-                batTable.js["name"].push_back(gBatch->name);
-                batTable.js["maxPoint"].push_back(gBatch->maxPoint);
-                get_bound(max, min, gBatch->maxPoint);
-                batTable.js["minPoint"].push_back(gBatch->minPoint);
-                get_bound(max, min, gBatch->minPoint);
-            }
-            
-			B3dmHeader b3dheader;
-            std::string batch_str = batTable.align();
-			b3dheader.batchBinLen = batch_str.size();
-            TileNode* model_node = new TileNode;
-
-
-
-            model_node->m_boundingVol.style = SPHERE;
-            vec3f maxf(max[0], max[1], max[2]);
-            vec3f minf(min[0], min[1], min[2]);
-            vec3f center = (maxf + minf) / 2;
-            model_node->m_boundingVol.boundArray.resize(4);
-            memcpy(tileset.m_root->m_boundingVol.boundArray.data(),
-                data(center), sizeof(float) * size(center));
-            model_node->m_content
-
-	}
-
-	
-		tileset.m_root->m_boundingVol.style = SPHERE;
-        vec3f maxf(max[0], max[1], max[2]);
-        vec3f minf(min[0], min[1], min[2]);
-        vec3f center = (maxf + minf) / 2;
-        tileset.m_root->m_boundingVol.boundArray.resize(4);
-        memcpy(tileset.m_root->m_boundingVol.boundArray.data(), data(center),
-            sizeof(float) * size(center));
+    if (gltf.buffers.size() < 2) return;
+    //
+    std::map<int, int> buffer_len;
+    buffer_len.insert(std::make_pair(0, 0));
+    glTFBuffer* gBuffer = gltf.buffers[0];
+    for (int i = 1; i < gltf.buffers.size(); i++) {
+        buffer_len.insert(std::make_pair(i, gltf.buffers[i - 1]->byteLength));
+        gBuffer->byteLength += gltf.buffers[i]->byteLength;
+        gBuffer->data.insert(gBuffer->data.end(), gltf.buffers[i]->data.begin(),
+            gltf.buffers[i]->data.end());
+    }
+    // clear
+    for (auto it = gltf.buffers.end() - 1; it != gltf.buffers.begin();) {
+        auto iterase = it;
+        it--;
+        gltf.buffers.erase(iterase);
+        
+    }
+    // update bufferviews
+    for (auto gBufView : gltf.bufferViews) {
+        if (int(gBufView->buffer) != 0) {
+            gBufView->byteOffset +=
+                buffer_len.find(int(gBufView->buffer))->second;
+            gBufView->buffer.set_id(0);
+        }
+    }
 }
 }  // namespace ygl
