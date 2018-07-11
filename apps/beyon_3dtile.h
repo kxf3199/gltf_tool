@@ -80,7 +80,8 @@ enum TileType { B3DM, I3DM };
 /*
 "b3dm".This can be used to identify the arraybuffer
     as a Batched 3D Model tile.
-        byteLen- The length of the entire tile,
+        
+byteLen- The length of the entire tile,
     including the header,
     in bytes.
 
@@ -219,7 +220,7 @@ struct TileNode {
 
     //     mat4f m_transform = {
     //         {1, 0, 0, 0}, {0, 1, 0, 0}, {0, 0, 1, 0}, {0, 0, 0, 1}};
-    float m_geometricError;
+    float m_geometricError=200;
     RefineStyle m_refineStyle = ADD;
     TileContent m_content;
     B3dModel* m_b3dm = nullptr;
@@ -227,12 +228,12 @@ struct TileNode {
     json& convert_js(json& js) {
         json bound_js;
         js["boundingVolume"] = m_boundingVol.convert_js(bound_js);
-        js["geometricError"] = 0.0;
+        js["geometricError"] = m_geometricError;
         switch (m_refineStyle) {
             case ADD: js["refine"] = "ADD"; break;
             case REPLACE: js["refine"] = "REPLACE"; break;
         };
-        if (!m_content.uri.empty()) { js["content"]["uri"] = m_content.uri; }
+        if (!m_content.uri.empty()) { js["content"]["url"] = m_content.uri; }
         // std::vector<float> trans_data;
         // ygl::mat_to_array(trans_data, m_transform);
         js["transform"] = m_transform;

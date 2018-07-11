@@ -1704,7 +1704,8 @@ std::vector<glTF*> split_gltf(
 
         // save current accessor
         std::set<glTFid<glTFAccessor>*> accessors_indices;
-
+        gltf_new->extensionsUsed = gltf->extensionsUsed;
+        gltf_new->extensionsRequired = gltf->extensionsRequired;
         //骨骼和动画暂放
         gltf_new->animations = gltf->animations;
         gltf_new->skins = gltf->skins;
@@ -1713,8 +1714,9 @@ std::vector<glTF*> split_gltf(
         gltf_new->meshes.push_back(new_mesh);
 
         //由mesh找到对应的node
-        auto gNode = new glTFNode(*get_node(i++));
+        auto gNode = new glTFNode(*get_node(i));
         gNode->mesh.set_id(0);
+		if (gNode->name=="") gNode->name = new_mesh->name;
         gltf_new->nodes.push_back(gNode);
 
         glTFid<glTFNode> node_gltfid(gltf_new->nodes.size() - 1);
@@ -1778,8 +1780,10 @@ std::vector<glTF*> split_gltf(
         int position_count = 0;
         gltf_new->batches.push_back(new glTFBatch);
         auto gBatch = gltf_new->batches.back();
-        gBatch->name = new_mesh->name + "_batchId";
-
+        gBatch->name = new_mesh->name ;
+        gBatch->id = i;
+		//mesh bound
+        bbox3f meshBox;
         std::map<int, int> store_accessor_map;
         for (auto itAccess : accessors_indices) {
             auto it_exist_accessor = store_accessor_map.find(int(*itAccess));
@@ -1796,12 +1800,25 @@ std::vector<glTF*> split_gltf(
                 accessors_positions.end())  // positons propertity
             {
                 position_count += gAccessor->count;
-                vec3f max_pos = vec3f(
-                    gAccessor->max[0], gAccessor->max[1], gAccessor->max[2]);
-                vec3f min_pos = vec3f(
-                    gAccessor->min[0], gAccessor->min[1], gAccessor->min[2]);
-                get_bound(gBatch->maxPoint, gBatch->minPoint, max_pos);
-                get_bound(gBatch->maxPoint, gBatch->minPoint, min_pos);
+				//如果存储器已经计算过顶点边界，直接拿来用
+                if (gAccessor->max.size() > 2 && gAccessor->min.size() > 2)
+		        {
+                    meshBox += bbox3f(vec3f(gAccessor->min[0], gAccessor->min[1], gAccessor->min[2]),
+                        vec3f(gAccessor->max[0], gAccessor->max[1],
+                            gAccessor->max[2]));
+                } else {
+                    auto bbox =
+                        make_bbox(acce_view.count(), (vec3f*)acce_view.get_buffer());
+                    meshBox += bbox;
+                    gAccessor->max.resize(3),gAccessor->min.resize(3);
+                    gAccessor->max[0] = bbox.max.x;
+                    gAccessor->max[1] = bbox.max.y;
+                    gAccessor->max[2] = bbox.max.z;
+                    gAccessor->min[0] = bbox.min.x;
+                    gAccessor->min[1] = bbox.min.y;
+                    gAccessor->min[2] = bbox.min.z;
+                }
+                
             }
             gltf_new->accessors.push_back(gAccessor);
             int new_accessor_size = gltf_new->accessors.size();
@@ -1857,7 +1874,11 @@ std::vector<glTF*> split_gltf(
 
         // costruct batchtable
         int batchIdCount = position_count / 3;
-
+        gBatch->maxPoint.resize(3);
+        memcpy(gBatch->maxPoint.data(), data(meshBox.max), sizeof(float) * 3);
+        gBatch->minPoint.resize(3);
+        memcpy(gBatch->minPoint.data(), data(meshBox.min), sizeof(float) * 3);
+		
         gBatch->data.resize(batchIdCount);
         for (int j = 0; j < batchIdCount; j++) gBatch->data[j] = gBatch->id;
         // add buffer
@@ -1886,6 +1907,7 @@ std::vector<glTF*> split_gltf(
         batch_accessor->bufferView.set_id(gltf_new->bufferViews.size() - 1);
         gBatch->batch.set_id(gltf_new->accessors.size() - 1);
         gltf_group.push_back(gltf_new);
+        i++;
     }
     return gltf_group;
 }

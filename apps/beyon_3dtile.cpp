@@ -99,7 +99,7 @@ bool Beyon3dtile::generate_tileset(glTF* gl, std::string outpath,
         model_node->m_refineStyle = REPLACE;
 
         FeatureTable feaTable;
-        feaTable.js["batchLen"] = batTable.js["batchId"].size();
+        feaTable.js["BATCH_LENGTH"] = batTable.js["batchId"].size();
 
         B3dModel* b3dModel = new B3dModel(gl, feaTable, batTable);
         model_node->m_b3dm = b3dModel;

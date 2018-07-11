@@ -7852,8 +7852,8 @@ struct glTFBatch : glTFChildOfRootProperty {
     std::vector<unsigned short> data = {};
     /// batch id.
     unsigned short id = 0;
-    std::vector<float> maxPoint = {FLT_MIN, FLT_MIN, FLT_MIN};
-    std::vector<float> minPoint = {FLT_MAX, FLT_MAX, FLT_MAX};
+    std::vector<float> maxPoint = {};
+    std::vector<float> minPoint = {};
 };
 /// A node in the node hierarchy.  When the node contains `skin`, all
 /// `mesh.primitives` must contain `JOINTS_0` and `WEIGHTS_0` attributes.  A
